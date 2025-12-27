@@ -6,7 +6,7 @@ app = Flask(__name__)
 # データベースに接続する関数
 def get_db_connection():
     conn = sqlite3.connect('trivia.db')
-    # ↓これやると列名でアクセスできるんだって（へー）
+    # ↓これやると列名でアクセスできる
     conn.row_factory = sqlite3.Row
     return conn
 
