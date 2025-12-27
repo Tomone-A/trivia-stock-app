@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雑学ストックアプリ</title>
+    <style>
+        /* ベースのデザイン 必要に応じてmarginとか調整する */
+        /* body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;} */
+        body { font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "HGSMinchoE", "MS PMincho", "MS Mincho", serif; 
+               line-height: 1.6; 
+               letter-spacing: 0.05em;
+               color: #333;
+               max-width: 800px; 
+               margin: 0 auto; 
+               padding: 20px; 
+               padding-bottom: 80px;
+               background-color: #f6f4f0;
+            }
+        .memo-card { 
+            position: relative;
+            border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .category { font-size: 0.8em; color: #666; background: #eee; padding: 2px 6px; border-radius: 4px;}
+        .source { font-size: 0.9em; color: #888; text-align: right;} 
+        
+        /* 削除ボタン */
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #ccc;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .delete-btn:hover {
+            color: rgb(220, 146, 146);
+        }
+
+        .card-footer{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            border-top: 1px dashed #eee;
+            padding-top: 10px;
+        }
+
+        .count-btn {
+            background-color: #bd9d82;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .count-btn:hover {
+            background-color: #a88b73;
+        }
+
+        /* 右下に追加ボタン */
+        .fab-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #bd9d82;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+            z-index: 100; /* 最前面に表示 */
+        }
+        .fab-btn:hover {
+            background-color: #a88b73;
+        }
+
+        /* 入力フォーム（引き出し型） */
+        .drawer {
+            position: fixed;
+            bottom: -100%; /* 初期状態では画面の下に隠れている */
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0px -2px 10px rgba(0,0,0,0.1);
+            transition: bottom 0.3s ease-out; /* アニメーションの設定 */
+            z-index: 200; /* ボタンより上に表示 */
+            padding: 20px;
+            box-sizing: border-box;
+            height: 80vh;
+            overflow-y: auto;
+        }
+        /* 出てくる */
+        .drawer.open {
+            bottom: 0; 
+        }
+
+        /* フォームのデザイン */
+        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;}
+        .close-btn { background: #ccc; border: none; padding: 10px; width: 100%; margin-top: 10px; cursor: pointer;}
+        .submit-btn { background: #bd9d82; color: white; border: none; padding: 10px; width: 100%; cursor: pointer;}
+
+        /* 背景を暗くする */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; /* 最初は非表示 */
+            z-index: 150; /* フォームの下 */           
+        }
+        .overlay.open { display: block; }
+    </style>
+</head>
+<body>
+    <h1>明日、だれかに話したい</h1>
+    <p>あなたが集めている話のタネはありますか。</p>
+
+    {% for memo in memos %}
+        <div class="memo-card">
+            <form action="{{ url_for('delete_memo', id=memo['id']) }}" method="POST" style="display:inline;">
+                <button type="submit" class="delete-btn" onclick="return confirm('削除しますか？')">×</button>
+            </form>
+
+            <h3>
+                <small class="category">【{{ memo['category'] }}】</small>
+                {{ memo['title'] }}
+            </h3>
+            <p>{{ memo['content'] }}</p>
+            
+            {% if memo['source'] %}
+                <p class="source">出典: {{ memo['source'] }}</p>
+            {% endif %}
+
+            <div class="card-footer">
+                <small>話せた回数: {{ memo['usage_count'] }} 回</small>
+                
+                <form action="{{ url_for('count_up', id=memo['id']) }}" method="POST" style="display:inline;">
+                    <button type="submit" class="count-btn">話せた！</button>
+                </form>
+            </div>            
+        </div>
+    {% else %}
+        <p>...タネはまだないようです。</p>
+    {% endfor %}
+
+    <button class="fab-btn" onclick="toggleDrawer()">+</button>
+    
+    <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
+    
+    <div class="drawer" id="drawer">
+        <h2>新しいタネを追加</h2>
+        <form method="POST" action="/">
+            <label>タイトル</label>
+            <input type="text" name="title" required placeholder="例：⚪︎⚪︎の意外な語源">
+            
+            <label>カテゴリ</label>
+            <select name="category" required>
+                <option value="" disabled selected>選択してください</option>
+                <option value="科学">科学</option>
+                <option value="人文">人文</option>
+                <option value="歴史">歴史</option>
+                <option value="芸術">芸術</option>
+                <option value="言語">言語</option>
+                <option value="宗教">宗教</option>
+                <option value="その他">その他</option>
+            </select>
+
+            <label>内容</label>
+            <textarea name="content" rows="5" required placeholder="あなたが話したいことを自由に書いてください"></textarea>
+
+            <label>出典（あれば）</label>
+            <input type="text" name="source" placeholder="例：本のタイトルやURL">
+
+            <button type="submit" class="submit-btn">追加する</button>
+        </form>
+        <button class="close-btn" onclick="toggleDrawer()">閉じる</button>
+    </div>
+
+    <script>
+        function toggleDrawer() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('overlay');
+            // クラスの付け・外しで表示・非表示を切り替える
+            drawer.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+    </script>
+
+</body>
+</html>
